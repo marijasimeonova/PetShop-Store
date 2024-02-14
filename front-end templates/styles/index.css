@@ -1,0 +1,79 @@
+/* Global styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; 
+}
+
+h1 {
+    color: #4CAF50;
+    margin-top: 20px;
+    margin-left: 20px;
+    font-size: 25px;
+}
+
+/* Navigation */
+nav {
+    text-align: right;
+    margin-top: 20px;
+    margin-right: 20px;
+}
+
+nav ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline-block;
+    margin-left: 10px;
+}
+
+nav ul li a {
+    text-decoration: none;
+    color: #050505;
+    font-weight: bold;
+    padding: 10px 20px; /* Added padding to buttons */
+    border-radius: 8px; /* Added border radius */
+    background-color: #4CAF50; /* Added background color */
+    border: 2px solid #fff; /* Added border */
+}
+
+/* Featured Quote Section */
+h4 {
+    text-align: center;
+    color: #4CAF50;
+    font-weight: bold;
+    font-size: 50px; /* Increased font size */
+
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-sizing: content-box;
+}
+
+/* Main Section */
+main {
+    margin-top: 20px;
+    padding: 0 20px;
+    flex: 1; /* Take up remaining space */
+}
+
+section h2 {
+    color: #000000;
+}
+
+/* Footer */
+footer {
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+    margin-top: auto; /* Push footer to the bottom */
+}

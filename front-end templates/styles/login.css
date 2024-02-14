@@ -1,0 +1,79 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2; /* light grey */
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensures the body takes at least the full viewport height */
+}
+
+header {
+    background-color: #4CAF50; /* green */
+    color: #fff; /* white */
+    padding: 20px;
+    text-align: center;
+}
+
+main {
+    flex: 1; /* Takes remaining space */
+    padding: 20px;
+    display: flex;
+    justify-content: center; /* Center the content horizontally */
+    align-items: center; /* Center the content vertically */
+}
+
+section {
+    background-color: #fff; /* white */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 100%; /* Adjusted width for better responsiveness */
+    max-width: 300px; /* Maximum width for the form */
+}
+
+h2 {
+    color: #4CAF50; /* green */
+    text-align: center;
+}
+
+form {
+    margin: 0 auto; /* Center the form within the section */
+}
+
+label {
+    margin-bottom: 8px;
+    color: #333; /* black */
+    font-weight: bold; /* added font-weight for better visibility */
+}
+
+input[type="text"],
+input[type="password"] {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc; /* grey */
+    border-radius: 4px;
+    width: 100%; /* added width for better responsiveness */
+    box-sizing: border-box; /* added box-sizing for better padding control */
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #4CAF50; /* green */
+    color: #fff; /* white */
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%; /* added width for better responsiveness */
+}
+
+button:hover {
+    background-color: #45a049; /* darker green on hover */
+}
+
+footer {
+    background-color: #333; /* black */
+    color: #fff; /* white */
+    text-align: center;
+    padding: 20px;
+}

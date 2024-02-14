@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../styles/home.css"> 
+    <title>Home</title>
+    <style>
+        /* CSS for hiding content initially */
+        .content {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Welcome to Online PetShop Store</h1>
+    </header>
+
+    <h4> <img src="../pets.jpg" alt="Pets" class="background-image"> </h4>
+
+    <nav>
+        <ul>
+            <li><a href="#adopt" onclick="showContent('adopt')">Adopt a pet</a></li>
+            <li><a href="#shop" onclick="showContent('shop')">Shop</a></li>
+            <li><a href="#blog" onclick="showContent('blog')">Blog</a></li>
+            <li><a href="#contact" onclick="showContent('contact')">Contact Us</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="adopt" class="content">
+            <h2>Adopt a pet</h2>
+            <!-- Include content about available dogs for adoption -->
+        </section>
+
+        <section id="shop" class="content">
+            <h2>Shop</h2>
+            <p>Please select a category:</p>
+            <ul>
+                <li><a href="#toys" onclick="showSubContent('toys')">Toys</a></li>
+                <li><a href="#accessories" onclick="showSubContent('accessories')">Accessories</a></li>
+                <li><a href="#food" onclick="showSubContent('food')">Food</a></li>
+            </ul>
+            <div id="toys" class="content">Content for Toys category</div>
+            <div id="accessories" class="content">Content for Accessories category</div>
+            <div id="food" class="content">Content for Food category</div>
+        </section>
+
+        <section id="blog" class="content">
+            <h2>Blog</h2>
+            <!-- Include stories from users -->
+        </section>
+
+        <section id="contact" class="content">
+            <h2>Contact Us</h2>
+            <!-- Include contact information -->
+        </section>
+    </main>
+
+
+    <script>
+        function showContent(sectionId) {
+            // Hide all content sections
+            var contentSections = document.querySelectorAll('.content');
+            contentSections.forEach(function(section) {
+                section.style.display = 'none';
+            });
+
+            // Show the selected content section
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function showSubContent(subSectionId) {
+            // Hide all sub-content sections
+            var subContentSections = document.querySelectorAll('.content');
+            subContentSections.forEach(function(section) {
+                section.style.display = 'none';
+            });
+
+            // Show the selected sub-content section
+            document.getElementById(subSectionId).style.display = 'block';
+        }
+    </script>
+</body>
+</html>

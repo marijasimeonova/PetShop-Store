@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../styles/index.css"> 
+    <title>Welcome</title>
+</head>
+<body>
+    <h1>Online PetShop Store</h1>
+    <!-- Add links to other pages or actions here -->
+
+    <nav>
+        <ul>
+            <li><a href="/register">Register</a></li>
+            <li><a href="/login" id="loginButton">Log In</a></li> 
+        </ul>
+    </nav>
+    
+    <h4> "Where Every <br>
+        Tail Wags and <br>
+        Every Purr <br>
+        Feels At Home" </h4> 
+
+    
+    <main>
+        <section>
+            <h2>About Us</h2>
+            <p>
+                Welcome to Online PetShop Store, your premier online destination for all things pet-related. <br>
+                We're dedicated to providing top-quality products, exceptional service, and even the opportunity <br>
+                to find your new furry family member through adoption.
+            </p>
+        </section>   
+    </main>
+    
+    <footer>
+        <p>Contact Us: support@petshopstore.com</p>
+    </footer>
+    
+    <!-- Script to toggle the visibility of the login form -->
+    <script>
+        document.getElementById('loginButton').addEventListener('click', function () {
+            var loginForm = document.getElementById('loginForm');
+            if (loginForm.style.display === 'block') {
+                loginForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'block';
+            }
+        });
+    </script>
+    
+
+    </body>
+    
+    </html>
+</body>
+</html>
