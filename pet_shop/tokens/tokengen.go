@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// SignedDetails holds the details of a signed token.
 type SignedDetails struct {
 	Email      string
 	First_Name string
@@ -22,9 +23,13 @@ type SignedDetails struct {
 	jwt.StandardClaims
 }
 
+// UserData represents the MongoDB collection for user data.
 var UserData *mongo.Collection = database.UserData(database.Client, "Users")
+
+// SECRET_KEY holds the secret key for signing tokens.
 var SECRET_KEY = os.Getenv("SECRET_LOVE")
 
+// TokenGenerator generates a new JWT token and refresh token.
 func TokenGenerator(email string, firstname string, lastname string, uid string) (signedtoken string, signedrefreshtoken string, err error) {
 	claims := &SignedDetails{
 		Email:      email,
@@ -52,6 +57,7 @@ func TokenGenerator(email string, firstname string, lastname string, uid string)
 	return token, refreshtoken, err
 }
 
+// ValidateToken validates the JWT token.
 func ValidateToken(signedtoken string) (claims *SignedDetails, msg string) {
 	token, err := jwt.ParseWithClaims(signedtoken, &SignedDetails{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(SECRET_KEY), nil
@@ -73,6 +79,7 @@ func ValidateToken(signedtoken string) (claims *SignedDetails, msg string) {
 	return claims, msg
 }
 
+// UpdateAllTokens updates the JWT token and refresh token in the database.
 func UpdateAllTokens(signedtoken string, signedrefreshtoken string, userid string) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	var updateobj primitive.D

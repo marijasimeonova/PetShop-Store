@@ -58,17 +58,22 @@ func SignUp() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
+
+		// Bind the JSON data to the user model
 		var user models.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		// Validate user input
 		validationErr := Validate.Struct(user)
 		if validationErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr})
 			return
 		}
 
+		// Check if user already exists by email
 		count, err := UserCollection.CountDocuments(ctx, bson.M{"email": user.Email})
 		if err != nil {
 			log.Panic(err)
@@ -78,6 +83,8 @@ func SignUp() gin.HandlerFunc {
 		if count > 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists"})
 		}
+
+		// Check if phone number is already in use
 		count, err = UserCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
 		defer cancel()
 		if err != nil {
@@ -90,11 +97,15 @@ func SignUp() gin.HandlerFunc {
 			return
 		}
 
+		// Hash the password
 		password := HashPassword(*user.Password)
 		user.Password = &password
 
+		// Set created_at and updated_at timestamps
 		user.Created_At, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		user.Updated_At, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		// Generate user ID and tokens
 		user.ID = primitive.NewObjectID()
 		user.User_ID = user.ID.Hex()
 		token, refreshtoken, _ := generate.TokenGenerator(*user.Email, *user.First_Name, *user.Last_Name, user.User_ID)
@@ -102,6 +113,8 @@ func SignUp() gin.HandlerFunc {
 		user.Refresh_Token = &refreshtoken
 		user.UserCart = make([]models.ProductUser, 0)
 		user.Order_Status = make([]models.Order, 0)
+
+		// Insert user into the database
 		_, inserterr := UserCollection.InsertOne(ctx, user)
 		if inserterr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "not created"})
@@ -116,18 +129,24 @@ func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
+
+		// Bind the JSON data to the user model
 		var user models.User
 		var founduser models.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err})
 			return
 		}
+
+		// Find user by email
 		err := UserCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&founduser)
 		defer cancel()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "login or password incorrect"})
 			return
 		}
+
+		// Verify password
 		PasswordIsValid, msg := VerifyPassword(*user.Password, *founduser.Password)
 		defer cancel()
 		if !PasswordIsValid {
@@ -135,6 +154,8 @@ func Login() gin.HandlerFunc {
 			fmt.Println(msg)
 			return
 		}
+
+		// Generate tokens
 		token, refreshToken, _ := generate.TokenGenerator(*founduser.Email, *founduser.First_Name, *founduser.Last_Name, founduser.User_ID)
 		defer cancel()
 		generate.UpdateAllTokens(token, refreshToken, founduser.User_ID)
@@ -153,7 +174,11 @@ func AddProduct() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		// Generate a new ObjectID for the product
 		products.Product_ID = primitive.NewObjectID()
+
+		// Insert the product into the database
 		_, anyerr := ProductCollection.InsertOne(ctx, products)
 		if anyerr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Not Created"})
@@ -169,11 +194,14 @@ func SearchProduct() gin.HandlerFunc {
 		var productlist []models.Product
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
+		// Retrieve all products from the database
 		cursor, err := ProductCollection.Find(ctx, bson.D{{}})
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, "Someting Went Wrong Please Try After Some Time")
 			return
 		}
+
+		// Decode the cursor into a list of products
 		err = cursor.All(ctx, &productlist)
 		if err != nil {
 			log.Println(err)
@@ -518,6 +546,7 @@ func GetUserCart(ctx context.Context, userCollection *mongo.Collection, userID s
 
 func BuyProductFromCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Extract userID from the request parameters
 		userID := c.Param("userID")
 		if userID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "userID is empty"})
@@ -527,6 +556,7 @@ func BuyProductFromCart() gin.HandlerFunc {
 		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
+		// Call the BuyItemFromCart function to process the purchase
 		err := BuyItemFromCart(ctx, UserCollection, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -538,12 +568,14 @@ func BuyProductFromCart() gin.HandlerFunc {
 }
 
 func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, userID string) error {
+	// Convert userID to ObjectID
 	id, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		log.Println(err)
 		return ErrUserIDIsNotValid
 	}
 
+	// Initialize variables for storing cart items and order details
 	var getCartItems models.User
 	var orderCart models.Order
 	orderCart.Order_ID = primitive.NewObjectID()
@@ -551,6 +583,7 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 	orderCart.Order_Cart = make([]models.ProductUser, 0)
 	orderCart.Payment_Method.COD = true
 
+	// Define aggregation pipeline stages to calculate the total price of items in the cart
 	unwind := bson.D{{Key: "$unwind", Value: bson.D{primitive.E{Key: "path", Value: "$usercart"}}}}
 	grouping := bson.D{{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$_id"}, {Key: "total", Value: bson.D{primitive.E{Key: "$sum", Value: "$usercart.price"}}}}}}
 
@@ -560,32 +593,39 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 		return ErrCantGetItem
 	}
 
+	// Decode the aggregated results into a slice of BSON documents
 	var getUserCart []bson.M
 	if err := currentResults.All(ctx, &getUserCart); err != nil {
 		log.Println(err)
 		return ErrCantGetItem
 	}
 
+	// Calculate the total price from the aggregated results
 	var totalPrice int32
 	for _, userItem := range getUserCart {
 		price := userItem["total"]
 		totalPrice = price.(int32)
 	}
 
+	// Set the total price in the orderCart struct
 	orderCart.Price = int(totalPrice)
 
+	// Define the filter to update the user's document
 	filter := bson.D{primitive.E{Key: "_id", Value: id}}
 	update := bson.D{{Key: "$push", Value: bson.D{primitive.E{Key: "orders", Value: orderCart}}}}
+	// Update the user document with the order details
 	if _, err := userCollection.UpdateMany(ctx, filter, update); err != nil {
 		log.Println(err)
 		return ErrCantBuyCartItem
 	}
 
+	// Retrieve the user's cart items after the purchase
 	if err := userCollection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: id}}).Decode(&getCartItems); err != nil {
 		log.Println(err)
 		return ErrCantBuyCartItem
 	}
 
+	// Define the filter to update the user's document again
 	filter2 := bson.D{primitive.E{Key: "_id", Value: id}}
 	update2 := bson.M{"$push": bson.M{"orders.$[].order_list": bson.M{"$each": getCartItems.UserCart}}}
 	if _, err := userCollection.UpdateOne(ctx, filter2, update2); err != nil {
@@ -593,6 +633,7 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 		return ErrCantBuyCartItem
 	}
 
+	// Set the user's cart to empty after the purchase
 	userCartEmpty := make([]models.ProductUser, 0)
 	filtered := bson.D{primitive.E{Key: "_id", Value: id}}
 	updated := bson.D{{Key: "$set", Value: bson.D{primitive.E{Key: "usercart", Value: userCartEmpty}}}}
