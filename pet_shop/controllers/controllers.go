@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,6 +24,16 @@ var ProductCollection *mongo.Collection = database.ProductData(database.Client, 
 var PetCollection *mongo.Collection = database.PetData(database.Client, "Pets")
 var BlogCollection *mongo.Collection = database.BlogData(database.Client, "Blogs")
 var Validate = validator.New()
+
+var (
+	ErrCantFindProduct    = errors.New("can't find product")
+	ErrCantDecodeProducts = errors.New("can't find product")
+	ErrUserIDIsNotValid   = errors.New("user is not valid")
+	ErrCantUpdateUser     = errors.New("cannot add product to cart")
+	ErrCantRemoveItem     = errors.New("cannot remove item from cart")
+	ErrCantGetItem        = errors.New("cannot get item from cart ")
+	ErrCantBuyCartItem    = errors.New("cannot update the purchase")
+)
 
 func HashPassword(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -217,43 +228,6 @@ func SearchProductByType() gin.HandlerFunc {
 	}
 }
 
-/*
-func SearchProductByQuery() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var searchproducts []models.Product
-		queryParam := c.Query("name")
-		if queryParam == "" {
-			log.Println("query is empty")
-			c.Header("Content-Type", "application/json")
-			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid Search Index"})
-			c.Abort()
-			return
-		}
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-		searchquerydb, err := ProductCollection.Find(ctx, bson.M{"product_name": bson.M{"$regex": queryParam}})
-		if err != nil {
-			c.IndentedJSON(404, "something went wrong in fetching the dbquery")
-			return
-		}
-		err = searchquerydb.All(ctx, &searchproducts)
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "invalid")
-			return
-		}
-		defer searchquerydb.Close(ctx)
-		if err := searchquerydb.Err(); err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "invalid request")
-			return
-		}
-		defer cancel()
-		c.IndentedJSON(200, searchproducts)
-	}
-}
-*/
-
 func AddPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -302,42 +276,6 @@ func SearchPet() gin.HandlerFunc {
 	}
 }
 
-/*
-func SearchPetByQuery() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var searchpets []models.Pet
-		queryParam := c.Query("name")
-		if queryParam == "" {
-			log.Println("query is empty")
-			c.Header("Content-Type", "application/json")
-			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid Search Index"})
-			c.Abort()
-			return
-		}
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-		searchquerydb, err := PetCollection.Find(ctx, bson.M{"pet_name": bson.M{"$regex": queryParam}})
-		if err != nil {
-			c.IndentedJSON(404, "something went wrong in fetching the dbquery")
-			return
-		}
-		err = searchquerydb.All(ctx, &searchpets)
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "invalid")
-			return
-		}
-		defer searchquerydb.Close(ctx)
-		if err := searchquerydb.Err(); err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "invalid request")
-			return
-		}
-		defer cancel()
-		c.IndentedJSON(200, searchpets)
-	}
-}
-*/
 // AdoptPet handles the adoption of a pet => actually it is deleting the pet from the database (it is adopted)
 func AdoptPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -427,39 +365,154 @@ func SearchBlog() gin.HandlerFunc {
 	}
 }
 
-/*
-func SearchBlogByQuery() gin.HandlerFunc {
+func AddToCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var searchblogs []models.BlogPost
-		queryParam := c.Query("name")
-		if queryParam == "" {
-			log.Println("query is empty")
-			c.Header("Content-Type", "application/json")
-			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid Search Index"})
-			c.Abort()
+		// Get productID and userID from the route parameters
+		productID := c.Param("productID")
+		userID := c.Param("userID")
+
+		// Check if productID or userID is empty
+		if productID == "" || userID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "productID or userID is empty"})
 			return
 		}
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-		searchquerydb, err := BlogCollection.Find(ctx, bson.M{"title": bson.M{"$regex": queryParam}})
+
+		// Convert productID to ObjectID
+		productObjID, err := primitive.ObjectIDFromHex(productID)
 		if err != nil {
-			c.IndentedJSON(404, "something went wrong in fetching the dbquery")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid productID"})
 			return
 		}
-		err = searchquerydb.All(ctx, &searchblogs)
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "invalid")
-			return
-		}
-		defer searchquerydb.Close(ctx)
-		if err := searchquerydb.Err(); err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "invalid request")
-			return
-		}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		c.IndentedJSON(200, searchblogs)
+
+		err = AddProductToCart(ctx, ProductCollection, UserCollection, productObjID, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Successfully added product to cart"})
 	}
 }
-*/
+
+func AddProductToCart(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
+	// Retrieve the product details from the products collection
+	searchResult := prodCollection.FindOne(ctx, bson.M{"_id": productID})
+	if searchResult.Err() != nil {
+		return ErrCantFindProduct
+	}
+
+	// Decode the product details into a ProductUser object
+	var product models.ProductUser
+	err := searchResult.Decode(&product)
+	if err != nil {
+		return ErrCantDecodeProducts
+	}
+
+	// Convert userID to ObjectID
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return ErrUserIDIsNotValid
+	}
+
+	// Update the user's cart with the product
+	filter := bson.M{"_id": userObjID}
+	update := bson.M{"$push": bson.M{"usercart": product}}
+	_, err = userCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return ErrCantUpdateUser
+	}
+
+	return nil
+}
+
+func RemoveFromCart() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		productID := c.Param("productID")
+		userID := c.Param("userID")
+		if productID == "" || userID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "productID or userID is empty"})
+			return
+		}
+
+		productObjID, err := primitive.ObjectIDFromHex(productID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid productID"})
+			return
+		}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err = RemoveCartItem(ctx, UserCollection, productObjID, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Successfully removed item from cart"})
+	}
+}
+
+func RemoveCartItem(ctx context.Context, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		log.Println(err)
+		return ErrUserIDIsNotValid
+	}
+	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+	update := bson.M{"$pull": bson.M{"usercart": bson.M{"_id": productID}}}
+	_, err = userCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return ErrCantRemoveItem
+	}
+	return nil
+}
+
+func ShowItemsFromUserCart() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get userID from the route parameter
+		userID := c.Param("userID")
+		if userID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "userID is empty"})
+			return
+		}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Retrieve the user's cart items
+		userCart, err := GetUserCart(ctx, UserCollection, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, userCart)
+	}
+}
+
+func GetUserCart(ctx context.Context, userCollection *mongo.Collection, userID string) ([]models.ProductUser, error) {
+	// Convert userID to ObjectID
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the user's document from the collection
+	result := userCollection.FindOne(ctx, bson.M{"_id": userObjID})
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+
+	// Decode the user document into a User object
+	var user models.User
+	if err := result.Decode(&user); err != nil {
+		return nil, err
+	}
+
+	// Return the user's cart items
+	return user.UserCart, nil
+}

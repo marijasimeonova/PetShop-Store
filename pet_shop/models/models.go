@@ -39,6 +39,7 @@ type ProductUser struct {
 	Price        int                `json:"price"  bson:"price"`
 	Rating       *uint              `json:"rating" bson:"rating"`
 	Image        *string            `json:"image"  bson:"image"`
+	Type         string             `json:"type" bson:"type"`
 }
 
 type Address struct {
