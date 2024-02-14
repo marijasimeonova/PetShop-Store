@@ -33,8 +33,6 @@ func main() {
 	router.PUT("/edithomeaddress/:userID", controllers.EditHomeAddress())
 	router.PUT("/editworkaddress/:userID", controllers.EditWorkAddress())
 	router.DELETE("/deleteaddresses/:userID", controllers.DeleteAddress())
-	//router.POST("/cartcheckout/:userID", app.BuyFromCart())
-	//router.POST("/instantbuy/:userID/:productID", app.InstantBuy())
 
 	// Log the error that the router can possibly return.
 	log.Fatal(router.Run(":" + port))

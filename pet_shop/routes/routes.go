@@ -18,6 +18,8 @@ func CartRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/addtocart/:productID/:userID", controllers.AddToCart())
 	incomingRoutes.DELETE("/removefromcart/:productID/:userID", controllers.RemoveFromCart())
 	incomingRoutes.GET("/usercart/:userID", controllers.ShowItemsFromUserCart())
+	incomingRoutes.POST("/buyfromcart/:userID", controllers.BuyProductFromCart())
+	incomingRoutes.POST("/instantbuy/:userID/:productID", controllers.InstantBuy())
 }
 
 func PetRoutes(incomingRoutes *gin.Engine) {

@@ -516,3 +516,169 @@ func GetUserCart(ctx context.Context, userCollection *mongo.Collection, userID s
 	// Return the user's cart items
 	return user.UserCart, nil
 }
+
+func BuyProductFromCart() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.Param("userID")
+		if userID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "userID is empty"})
+			return
+		}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := BuyItemFromCart(ctx, UserCollection, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Successfully placed order from cart"})
+	}
+}
+
+func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, userID string) error {
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		log.Println(err)
+		return ErrUserIDIsNotValid
+	}
+
+	var getCartItems models.User
+	var orderCart models.Order
+	orderCart.Order_ID = primitive.NewObjectID()
+	orderCart.Orderered_At = time.Now()
+	orderCart.Order_Cart = make([]models.ProductUser, 0)
+	orderCart.Payment_Method.COD = true
+
+	unwind := bson.D{{Key: "$unwind", Value: bson.D{primitive.E{Key: "path", Value: "$usercart"}}}}
+	grouping := bson.D{{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$_id"}, {Key: "total", Value: bson.D{primitive.E{Key: "$sum", Value: "$usercart.price"}}}}}}
+
+	currentResults, err := userCollection.Aggregate(ctx, mongo.Pipeline{unwind, grouping})
+	if err != nil {
+		log.Println(err)
+		return ErrCantGetItem
+	}
+
+	var getUserCart []bson.M
+	if err := currentResults.All(ctx, &getUserCart); err != nil {
+		log.Println(err)
+		return ErrCantGetItem
+	}
+
+	var totalPrice int32
+	for _, userItem := range getUserCart {
+		price := userItem["total"]
+		totalPrice = price.(int32)
+	}
+
+	orderCart.Price = int(totalPrice)
+
+	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+	update := bson.D{{Key: "$push", Value: bson.D{primitive.E{Key: "orders", Value: orderCart}}}}
+	if _, err := userCollection.UpdateMany(ctx, filter, update); err != nil {
+		log.Println(err)
+		return ErrCantBuyCartItem
+	}
+
+	if err := userCollection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: id}}).Decode(&getCartItems); err != nil {
+		log.Println(err)
+		return ErrCantBuyCartItem
+	}
+
+	filter2 := bson.D{primitive.E{Key: "_id", Value: id}}
+	update2 := bson.M{"$push": bson.M{"orders.$[].order_list": bson.M{"$each": getCartItems.UserCart}}}
+	if _, err := userCollection.UpdateOne(ctx, filter2, update2); err != nil {
+		log.Println(err)
+		return ErrCantBuyCartItem
+	}
+
+	userCartEmpty := make([]models.ProductUser, 0)
+	filtered := bson.D{primitive.E{Key: "_id", Value: id}}
+	updated := bson.D{{Key: "$set", Value: bson.D{primitive.E{Key: "usercart", Value: userCartEmpty}}}}
+	if _, err := userCollection.UpdateOne(ctx, filtered, updated); err != nil {
+		log.Println(err)
+		return ErrCantBuyCartItem
+	}
+
+	return nil
+}
+
+func InstantBuy() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get userID and productID from the route parameters
+		userID := c.Param("userID")
+		productID := c.Param("productID")
+
+		// Check if userID or productID is empty
+		if userID == "" || productID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "userID or productID is empty"})
+			return
+		}
+
+		// Convert productID to ObjectID
+		productObjID, err := primitive.ObjectIDFromHex(productID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid productID"})
+			return
+		}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Call the InstantBuyer function to process the instant purchase
+		err = InstantBuyer(ctx, ProductCollection, UserCollection, productObjID, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Successfully placed instant order"})
+	}
+}
+
+func InstantBuyer(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
+	// Convert userID to ObjectID
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		log.Println(err)
+		return ErrUserIDIsNotValid
+	}
+
+	// Retrieve product details from the products collection
+	var productDetails models.ProductUser
+	err = prodCollection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: productID}}).Decode(&productDetails)
+	if err != nil {
+		log.Println(err)
+		return ErrCantFindProduct
+	}
+
+	// Create a new order
+	var order models.Order
+	order.Order_ID = primitive.NewObjectID()
+	order.Orderered_At = time.Now()
+	order.Order_Cart = []models.ProductUser{productDetails}
+	order.Payment_Method.COD = true
+	order.Price = productDetails.Price
+
+	// Push the new order into the user's orders list
+	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+	update := bson.D{{Key: "$push", Value: bson.D{primitive.E{Key: "orders", Value: order}}}}
+	_, err = userCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Println(err)
+		return ErrCantBuyCartItem
+	}
+
+	// Push the product details into the order_list of the new order
+	filter2 := bson.D{primitive.E{Key: "_id", Value: id}}
+	update2 := bson.M{"$push": bson.M{"orders.$[].order_list": productDetails}}
+	_, err = userCollection.UpdateOne(ctx, filter2, update2)
+	if err != nil {
+		log.Println(err)
+		return ErrCantBuyCartItem
+	}
+
+	return nil
+}
