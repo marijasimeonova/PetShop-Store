@@ -182,6 +182,41 @@ func SearchProduct() gin.HandlerFunc {
 	}
 }
 
+func SearchProductByType() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var productlist []models.Product
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		// Get the type from the URL parameter
+		productType := c.Param("type")
+
+		// Create a filter to search for products of the specified type
+		filter := bson.M{"type": productType}
+
+		// Search for products matching the filter
+		cursor, err := ProductCollection.Find(ctx, filter)
+		if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, "Something Went Wrong. Please Try Again Later.")
+			return
+		}
+		err = cursor.All(ctx, &productlist)
+		if err != nil {
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer cursor.Close(ctx)
+		if err := cursor.Err(); err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, "Invalid Request")
+			return
+		}
+		defer cancel()
+		c.IndentedJSON(200, productlist)
+	}
+}
+
 /*
 func SearchProductByQuery() gin.HandlerFunc {
 	return func(c *gin.Context) {
