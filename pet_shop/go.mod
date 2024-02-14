@@ -1,4 +1,4 @@
-module ecommerce
+module pet_shop
 
 go 1.16
 

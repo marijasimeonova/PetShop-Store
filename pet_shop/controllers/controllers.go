@@ -134,7 +134,7 @@ func Login() gin.HandlerFunc {
 	}
 }
 
-func ProductViewerAdmin() gin.HandlerFunc {
+func AddProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var products models.Product
@@ -219,7 +219,7 @@ func SearchProductByQuery() gin.HandlerFunc {
 }
 */
 
-func PetViewerAdmin() gin.HandlerFunc {
+func AddPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var pets models.Pet
@@ -303,7 +303,6 @@ func SearchPetByQuery() gin.HandlerFunc {
 	}
 }
 */
-
 // AdoptPet handles the adoption of a pet => actually it is deleting the pet from the database (it is adopted)
 func AdoptPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -345,7 +344,7 @@ func AdoptPet() gin.HandlerFunc {
 }
 
 // creating a blog post
-func BlogViewerAdmin() gin.HandlerFunc {
+func CreateBlogPost() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var blogs models.BlogPost
